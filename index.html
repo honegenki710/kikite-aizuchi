@@ -57,6 +57,12 @@ button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:70
 .ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
 .tapbtn{width:100%;background:var(--bubble);color:var(--fg);border:1px dashed var(--accent)}
 .note{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0}
+.picker{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.picker::-webkit-scrollbar{display:none}
+.chip{min-width:0;padding:7px 4px;border-radius:12px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:1px;font-weight:700;background:transparent;color:var(--fg);border:1px solid var(--line)}
+.chip small{font-weight:400;color:var(--muted);font-size:11px}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.chip[aria-pressed="true"] small{color:var(--accent-fg);opacity:.85}
 [hidden]{display:none!important}
 </style></head><body>
 <div class="app">
@@ -67,47 +73,54 @@ button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:70
 <radialGradient id="skin" cx="45%" cy="38%" r="70%"><stop offset="0" stop-color="#f1cfb4"/><stop offset=".65" stop-color="#e2b394"/><stop offset="1" stop-color="#c99475"/></radialGradient>
 <linearGradient id="neckg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98266"/><stop offset=".5" stop-color="#d7a688"/></linearGradient>
 <linearGradient id="hairg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b3632"/><stop offset=".55" stop-color="#2a2623"/><stop offset="1" stop-color="#4a4541"/></linearGradient>
-<linearGradient id="knit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b5d6e"/><stop offset="1" stop-color="#34424f"/></linearGradient>
+<linearGradient id="knit" x1="0" y1="0" x2="0" y2="1"><stop id="k1" offset="0" stop-color="#4b5d6e"/><stop id="k2" offset="1" stop-color="#34424f"/></linearGradient>
 <radialGradient id="stub" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#5a4a42" stop-opacity=".22"/><stop offset="1" stop-color="#5a4a42" stop-opacity="0"/></radialGradient>
 </defs>
 <g id="body">
 <path d="M18 360 C24 312 62 290 112 284 L188 284 C238 290 276 312 282 360 Z" fill="url(#knit)"/>
-<path d="M112 284 L150 334 L188 284 L176 280 L150 312 L124 280 Z" fill="#e9eef2"/>
-<path d="M150 334 L150 360" stroke="#26313b" stroke-width="2" opacity=".5"/>
-<circle cx="150" cy="346" r="3" fill="#cfd6dc"/>
+<path id="collar" d="M112 284 L150 334 L188 284 L176 280 L150 312 L124 280 Z" fill="#e9eef2"/>
+<g id="buttons"><path d="M150 334 L150 360" stroke="#26313b" stroke-width="2" opacity=".5"/>
+<circle cx="150" cy="346" r="3" fill="#cfd6dc"/></g>
 </g>
 <path d="M124 228 L124 286 Q150 306 176 286 L176 228 Z" fill="url(#neckg)"/>
 <g id="head">
+<path id="hairBack" d="M72 170 C62 100 96 52 150 50 C204 52 240 100 230 170 C234 210 238 250 240 272 C224 286 204 282 196 266 L104 266 C96 282 76 286 60 272 C62 250 66 210 72 170 Z" fill="#3a2a22" hidden/>
 <ellipse cx="81" cy="172" rx="12" ry="21" fill="#d9a585"/>
 <ellipse cx="219" cy="172" rx="12" ry="21" fill="#d9a585"/>
 <path d="M84 176 Q78 170 82 162" stroke="#b07a5c" stroke-width="2" fill="none"/>
 <path d="M216 176 Q222 170 218 162" stroke="#b07a5c" stroke-width="2" fill="none"/>
 <path d="M150 72 C206 72 222 112 220 166 C218 214 196 252 150 258 C104 252 82 214 80 166 C78 112 94 72 150 72 Z" fill="url(#skin)"/>
-<ellipse cx="150" cy="224" rx="58" ry="36" fill="url(#stub)"/>
-<path d="M78 164 C66 100 98 52 152 50 C208 50 236 94 222 164 C218 136 210 114 194 104 C170 92 128 94 108 104 C92 114 84 134 78 164 Z" fill="url(#hairg)"/>
+<ellipse id="stubble" cx="150" cy="224" rx="58" ry="36" fill="url(#stub)"/>
+<path id="hair" d="M78 164 C66 100 98 52 152 50 C208 50 236 94 222 164 C218 136 210 114 194 104 C170 92 128 94 108 104 C92 114 84 134 78 164 Z" fill="#2e2a27"/>
+<g id="grey">
 <path d="M84 150 C84 132 90 118 100 110" stroke="#9a948f" stroke-width="3" fill="none" opacity=".75"/>
 <path d="M216 150 C216 132 210 118 200 110" stroke="#9a948f" stroke-width="3" fill="none" opacity=".75"/>
-<path d="M120 66 C140 58 172 58 196 72" stroke="#5a544f" stroke-width="2" fill="none" opacity=".6"/>
-<path d="M128 118 Q150 114 172 118" stroke="#b98466" stroke-width="1.2" fill="none" opacity=".45"/>
+</g>
+<path id="shine" d="M120 66 C140 58 172 58 196 72" stroke="#ffffff" stroke-width="2.5" fill="none" opacity=".15"/>
+<g id="age">
+<path d="M128 118 Q150 114 172 118" stroke="#b98466" stroke-width="1.2" fill="none"/>
+<path d="M110 170 Q120 174 130 170" stroke="#b07a5c" stroke-width="1.2" fill="none"/>
+<path d="M170 170 Q180 174 190 170" stroke="#b07a5c" stroke-width="1.2" fill="none"/>
+<path d="M128 200 Q122 214 128 228" stroke="#b07a5c" stroke-width="1.4" fill="none"/>
+<path d="M172 200 Q178 214 172 228" stroke="#b07a5c" stroke-width="1.4" fill="none"/>
+</g>
 <g id="brows">
-<path d="M103 141 Q118 132 136 138" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
-<path d="M164 138 Q182 132 197 141" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+<path class="brow" d="M103 141 Q118 132 136 138" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+<path class="brow" d="M164 138 Q182 132 197 141" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
 </g>
 <g class="eye" id="eyeL">
 <ellipse cx="120" cy="160" rx="11" ry="6.2" fill="#f7f3ef"/>
 <circle cx="121" cy="160" r="5.2" fill="#4a3426"/><circle cx="121" cy="160" r="2.3" fill="#1b120d"/>
 <circle cx="123" cy="158" r="1.3" fill="#fff"/>
-<path d="M108 158 Q120 150 132 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
+<path class="lid" d="M108 158 Q120 150 132 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
 </g>
 <g class="eye" id="eyeR">
 <ellipse cx="180" cy="160" rx="11" ry="6.2" fill="#f7f3ef"/>
 <circle cx="179" cy="160" r="5.2" fill="#4a3426"/><circle cx="179" cy="160" r="2.3" fill="#1b120d"/>
 <circle cx="181" cy="158" r="1.3" fill="#fff"/>
-<path d="M168 158 Q180 150 192 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
+<path class="lid" d="M168 158 Q180 150 192 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
 </g>
-<path d="M110 170 Q120 174 130 170" stroke="#b07a5c" stroke-width="1.2" fill="none" opacity=".6"/>
-<path d="M170 170 Q180 174 190 170" stroke="#b07a5c" stroke-width="1.2" fill="none" opacity=".6"/>
-<g fill="none" stroke="#3a3a3c" stroke-width="2.2" opacity=".85">
+<g id="glasses" fill="none" stroke="#3a3a3c" stroke-width="2.2" opacity=".85">
 <rect x="102" y="146" width="38" height="27" rx="9"/>
 <rect x="160" y="146" width="38" height="27" rx="9"/>
 <path d="M140 156 Q150 151 160 156"/>
@@ -115,16 +128,14 @@ button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:70
 </g>
 <path d="M150 162 C147 180 141 192 142 198 Q150 204 158 198" stroke="#a8715a" stroke-width="2" fill="none" stroke-linecap="round"/>
 <path d="M152 166 C152 180 156 188 158 196" stroke="#f6d8c2" stroke-width="2" fill="none" opacity=".6"/>
-<path d="M128 200 Q122 214 128 228" stroke="#b07a5c" stroke-width="1.4" fill="none" opacity=".55"/>
-<path d="M172 200 Q178 214 172 228" stroke="#b07a5c" stroke-width="1.4" fill="none" opacity=".55"/>
-<ellipse cx="112" cy="196" rx="12" ry="7" fill="#e08f7a" opacity=".18"/>
-<ellipse cx="188" cy="196" rx="12" ry="7" fill="#e08f7a" opacity=".18"/>
-<g id="mouthShut"><path d="M132 220 Q150 229 168 220" stroke="#8a4f42" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+<g id="cheeks" opacity=".18"><ellipse cx="112" cy="196" rx="12" ry="7" fill="#e08f7a"/><ellipse cx="188" cy="196" rx="12" ry="7" fill="#e08f7a"/></g>
+<g id="mouthShut"><path id="lips" d="M132 220 Q150 229 168 220" stroke="#8a4f42" stroke-width="3" fill="none" stroke-linecap="round"/></g>
 <g id="mouthOpen"><path d="M134 219 Q150 222 166 219 Q160 233 150 234 Q140 233 134 219 Z" fill="#6e3a32"/><path d="M138 220 Q150 222 162 220" stroke="#f3eeea" stroke-width="2.4" fill="none"/></g>
 </g>
 </svg>
 </div>
 <div class="panel">
+<div class="picker" id="picker" role="group" aria-label="聞き手を選ぶ"></div>
 <div class="status"><span id="statusText">準備OK</span><div class="meter" id="meterBox" hidden><i id="meter"></i><b id="thrMark"></b></div></div>
 <p class="heard" id="heard"></p>
 <label class="sens" id="sensRow" hidden>感度<input type="range" id="sens" min="1" max="10" value="6"></label>
@@ -145,7 +156,7 @@ const startBtn=$('startBtn'),voiceBtn=$('voiceBtn'),tapBtn=$('tapBtn'),note=$('n
 try{const v=localStorage.getItem('kikite-sens');if(v)sens.value=v}catch(e){}
 sens.addEventListener('input',()=>{try{localStorage.setItem('kikite-sens',sens.value)}catch(e){}});
 
-const W={
+const WB={
  short:['うん','はい','ええ','うん、うん'],
  mid:['うんうん','なるほど','そうなんですね','へえ','ほう','それで？'],
  long:['なるほどねえ','そうだったんですね','わかります','うんうん、それで？','へえ、そうなんだ'],
@@ -154,6 +165,47 @@ const W={
  ask:['うーん、どうでしょうね','なるほど、悩みますね','そうですねえ'],
  cont:['うん','うんうん','ええ']
 };
+
+/* 聞き手の切り替え */
+const CH=[
+ {id:'yuji',name:'ゆうじさん',age:'40代',pitch:.8,
+  hair:'#2e2a27',hairD:'M78 164 C66 100 98 52 152 50 C208 50 236 94 222 164 C218 136 210 114 194 104 C170 92 128 94 108 104 C92 114 84 134 78 164 Z',
+  back:false,grey:true,glasses:true,stubble:true,wr:.45,brow:'#2f2a27',bw:5.5,lid:2,lips:'#8a4f42',cheek:.18,k:['#4b5d6e','#34424f'],collar:'#e9eef2',buttons:true},
+ {id:'misaki',name:'みさきさん',age:'30代',pitch:1.15,
+  hair:'#3d2a20',hairD:'M76 172 C66 100 100 52 152 50 C206 52 236 98 224 172 C220 140 212 118 200 106 C186 122 150 132 118 124 C102 128 86 146 76 172 Z',
+  back:true,grey:false,glasses:false,stubble:false,wr:0,brow:'#4a3528',bw:3.6,lid:3,lips:'#b9574e',cheek:.32,k:['#d8b7a6','#b98f7d'],collar:'#f6efe9',buttons:false,
+  words:{short:['うん','うんうん','そっか'],mid:['うんうん','そうなんだ','へえ、そうなんだ','なるほどね','それで？'],long:['そうだったんだね','わかるなあ','うんうん、それで？'],hard:['それは大変だったね','しんどかったね','そっか…'],good:['よかったね！','いいなあ','うれしいね']}},
+ {id:'haruko',name:'はるこさん',age:'60代',pitch:1.05,
+  hair:'#b9b4ae',hairD:'M72 178 C58 110 94 48 150 46 C206 48 244 110 228 178 C226 152 218 128 204 114 C190 104 172 114 150 106 C128 114 112 104 98 114 C84 128 76 152 72 178 Z',
+  back:false,grey:false,glasses:true,stubble:false,wr:.6,brow:'#8d8580',bw:3.8,lid:2.4,lips:'#a65a54',cheek:.26,k:['#8e6f86','#6d5367'],collar:'#efe6ec',buttons:true,
+  words:{short:['うん','ええ','うんうん'],mid:['あらまあ','そうなのねえ','うんうん','へえ','それで？'],long:['そうだったのねえ','わかるわ','うんうん、それで？'],hard:['それは大変だったわねえ','よくがんばったわね','あらあら…'],good:['よかったわねえ','いいわねえ','うれしいわね']}},
+ {id:'kenta',name:'けんたくん',age:'20代',pitch:.95,
+  hair:'#4a3426',hairD:'M80 158 C72 96 104 54 152 52 C200 54 230 94 220 158 C216 130 208 114 196 108 C182 120 152 122 130 116 C114 116 100 120 92 130 C86 138 82 148 80 158 Z',
+  back:false,grey:false,glasses:false,stubble:false,wr:0,brow:'#3a2a20',bw:5,lid:2,lips:'#985549',cheek:.2,k:['#5f7d5a','#465f43'],collar:'#465f43',buttons:false,
+  words:{short:['うん','はい','うんうん'],mid:['へえ！','なるほど','そうなんですね','まじですか','それで？'],long:['なるほどなあ','わかります','へえ、それでそれで？'],hard:['それはきついですね','大変でしたね','うわあ…'],good:['いいですね！','最高じゃないですか','うらやましいです']}}
+];
+let cur=CH[0];
+const setAttr=(id,a,v)=>$(id).setAttribute(a,v);
+const show=(id,on)=>on?$(id).removeAttribute('hidden'):$(id).setAttribute('hidden','');
+function applyChar(c){
+ cur=c;
+ setAttr('hair','d',c.hairD);setAttr('hair','fill',c.hair);setAttr('hairBack','fill',c.hair);
+ show('hairBack',c.back);show('grey',c.grey);show('glasses',c.glasses);show('stubble',c.stubble);show('buttons',c.buttons);
+ setAttr('age','opacity',c.wr);show('age',c.wr>0);
+ document.querySelectorAll('.brow').forEach(b=>{b.setAttribute('stroke',c.brow);b.setAttribute('stroke-width',c.bw)});
+ document.querySelectorAll('.lid').forEach(l=>l.setAttribute('stroke-width',c.lid));
+ setAttr('lips','stroke',c.lips);setAttr('cheeks','opacity',c.cheek);
+ setAttr('k1','stop-color',c.k[0]);setAttr('k2','stop-color',c.k[1]);setAttr('collar','fill',c.collar);
+ setAttr('person','aria-label','聞き手の'+c.name);
+ document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.id===c.id));
+ try{localStorage.setItem('kikite-char',c.id)}catch(e){}
+}
+CH.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;b.type='button';
+ b.innerHTML=c.name+'<small>'+c.age+'</small>';b.addEventListener('click',()=>{applyChar(c);anim(head,'small');say('よろしくね',true)});$('picker').appendChild(b)});
+let saved='yuji';try{saved=localStorage.getItem('kikite-char')||'yuji'}catch(e){}
+applyChar(CH.find(c=>c.id===saved)||CH[0]);
+
+const W=new Proxy({},{get:(o,k)=>(cur.words&&cur.words[k])||WB[k]});
 let last='';
 function pick(l){let w;do{w=l[Math.floor(Math.random()*l.length)]}while(l.length>1&&w===last);last=w;return w}
 function choose(ms,t){
@@ -181,7 +233,7 @@ function aizuchi(ms,text){
  if(Math.random()<.4)setTimeout(blink,300);
  say(w);
  if(voiceOn&&'speechSynthesis'in window){
-  try{const u=new SpeechSynthesisUtterance(w);u.lang='ja-JP';u.pitch=.8;speakingOut=true;
+  try{const u=new SpeechSynthesisUtterance(w);u.lang='ja-JP';u.pitch=cur.pitch;speakingOut=true;
    u.onend=u.onerror=()=>setTimeout(()=>speakingOut=false,500);speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){speakingOut=false}
  }
 }
