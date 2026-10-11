@@ -189,8 +189,8 @@ const dt=t-prevT;prevT=t;
 analyser.getFloatTimeDomainData(data);
 let s=0;for(let i=0;i<data.length;i++)s+=data[i]*data[i];
 const rms=Math.sqrt(s/data.length);
-if(rms<floor)floor=floor*.9+rms*.1;else floor=floor*.999+rms*.001;
-const thr=Math.max(floor*3,0.012);
+if(rms<floor)floor=floor*.9+rms*.1;else floor=floor*.9999+rms*.0001;
+const thr=Math.max(floor*2,0.003);
 const voiced=rms>thr&&!speakingOut;
 meter.style.width=Math.min(100,rms/thr*35)+'%';
 if(voiced){
@@ -198,8 +198,8 @@ if(!inSeg){inSeg=true;segStart=t;voicedMs=0}
 voicedMs+=dt;lastVoice=t;statusText.textContent='聞いています…';
 if(t-lastNod>3200&&t-segStart>2500&&t-lastAizuchi>2000){lastNod=t;anim(head,'small')}
 }else if(inSeg){
-if(t-lastVoice>650){inSeg=false;
-if(voicedMs>500&&t-lastAizuchi>1200){lastAizuchi=t;lastNod=t;aizuchi(lastVoice-segStart)}
+if(t-lastVoice>5000){inSeg=false;
+if(voicedMs>300&&t-lastAizuchi>1200){lastAizuchi=t;lastNod=t;aizuchi(lastVoice-segStart)}
 statusText.textContent='聞いています';}
 }
 requestAnimationFrame(loop);
