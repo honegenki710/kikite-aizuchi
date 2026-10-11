@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>聞き上手さん</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#e7ebef; --panel:#f8fafb; --fg:#1f2a33; --muted:#5d6b77; --accent:#2f6f73; --accent-fg:#ffffff;
+  --bubble:#ffffff; --line:#cfd7de; --wall:#d9e0e6;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#14191e; --panel:#1d242b; --fg:#e8edf1; --muted:#9aa8b4; --accent:#6db3ae; --accent-fg:#0f1a1a;
+  --bubble:#26303a; --line:#33404b; --wall:#1a2128; color-scheme:dark}}
+html,body{height:100%;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;margin:0;-webkit-tap-highlight-color:transparent}
+.app{height:100%;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding-inline:16px;padding-block:12px;box-sizing:border-box;gap:10px}
+.stage{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  background:radial-gradient(120% 80% at 50% 30%,var(--panel),var(--wall));border-radius:20px;overflow:hidden}
+.bubble{position:absolute;top:14px;left:50%;transform:translateX(-50%) scale(.9);opacity:0;
+  background:var(--bubble);color:var(--fg);font-family:var(--font-display);font-weight:700;font-size:clamp(22px,7vw,30px);
+  padding:10px 22px;border-radius:22px;box-shadow:0 6px 18px rgb(0 0 0 / .12);white-space:nowrap;transition:opacity .25s,transform .25s;z-index:2}
+.bubble::after{content:"";position:absolute;bottom:-9px;left:50%;margin-left:-9px;border:9px solid transparent;border-top-color:var(--bubble);border-bottom:0}
+.bubble.show{opacity:1;transform:translateX(-50%) scale(1)}
+.bubble.hint{font-size:17px;font-weight:500;color:var(--muted)}
+svg.person{width:100%;max-width:340px;height:auto;max-height:100%;display:block;cursor:pointer}
+#head{transform-box:view-box;transform-origin:150px 280px}
+#head.nod{animation:nod .55s ease-in-out}
+#head.nod2{animation:nod2 .95s ease-in-out}
+#head.small{animation:small .5s ease-in-out}
+@keyframes nod{0%,100%{transform:none}40%{transform:translateY(5px) scaleY(.985)}}
+@keyframes nod2{0%,100%{transform:none}22%{transform:translateY(6px) scaleY(.982)}48%{transform:none}72%{transform:translateY(5px) scaleY(.985)}}
+@keyframes small{0%,100%{transform:none}50%{transform:translateY(2.5px)}}
+#body{transform-box:view-box;transform-origin:150px 360px;animation:breathe 4.5s ease-in-out infinite}
+@keyframes breathe{50%{transform:scaleY(1.008)}}
+.eye{transform-box:fill-box;transform-origin:center}
+.eye.blink{animation:blink .16s ease-in-out}
+@keyframes blink{50%{transform:scaleY(.08)}}
+#brows{transition:transform .25s}
+#brows.up{transform:translateY(-5px)}
+#mouthOpen{opacity:0;transition:opacity .08s}
+.talk #mouthOpen{opacity:1}
+.talk #mouthShut{opacity:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);min-height:22px}
+.meter{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:700;font-size:16px;cursor:pointer}
+.primary{flex:1;background:var(--accent);color:var(--accent-fg)}
+.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.tapbtn{width:100%;background:var(--bubble);color:var(--fg);border:1px dashed var(--accent)}
+.note{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0}
+[hidden]{display:none!important}
+</style></head><body>
+<div class="app">
+<div class="stage" id="stage">
+<div class="bubble show hint" id="bubble">どうぞ、話してください</div>
+<svg class="person" id="person" viewBox="0 0 300 360" role="img" aria-label="聞き手の男性">
+<defs>
+<radialGradient id="skin" cx="45%" cy="38%" r="70%"><stop offset="0" stop-color="#f1cfb4"/><stop offset=".65" stop-color="#e2b394"/><stop offset="1" stop-color="#c99475"/></radialGradient>
+<linearGradient id="neckg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98266"/><stop offset=".5" stop-color="#d7a688"/></linearGradient>
+<linearGradient id="hairg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b3632"/><stop offset=".55" stop-color="#2a2623"/><stop offset="1" stop-color="#4a4541"/></linearGradient>
+<linearGradient id="knit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b5d6e"/><stop offset="1" stop-color="#34424f"/></linearGradient>
+<radialGradient id="stub" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#5a4a42" stop-opacity=".22"/><stop offset="1" stop-color="#5a4a42" stop-opacity="0"/></radialGradient>
+</defs>
+<g id="body">
+<path d="M18 360 C24 312 62 290 112 284 L188 284 C238 290 276 312 282 360 Z" fill="url(#knit)"/>
+<path d="M112 284 L150 334 L188 284 L176 280 L150 312 L124 280 Z" fill="#e9eef2"/>
+<path d="M150 334 L150 360" stroke="#26313b" stroke-width="2" opacity=".5"/>
+<circle cx="150" cy="346" r="3" fill="#cfd6dc"/>
+</g>
+<path d="M124 228 L124 286 Q150 306 176 286 L176 228 Z" fill="url(#neckg)"/>
+<g id="head">
+<ellipse cx="81" cy="172" rx="12" ry="21" fill="#d9a585"/>
+<ellipse cx="219" cy="172" rx="12" ry="21" fill="#d9a585"/>
+<path d="M84 176 Q78 170 82 162" stroke="#b07a5c" stroke-width="2" fill="none"/>
+<path d="M216 176 Q222 170 218 162" stroke="#b07a5c" stroke-width="2" fill="none"/>
+<path d="M150 72 C206 72 222 112 220 166 C218 214 196 252 150 258 C104 252 82 214 80 166 C78 112 94 72 150 72 Z" fill="url(#skin)"/>
+<ellipse cx="150" cy="224" rx="58" ry="36" fill="url(#stub)"/>
+<path d="M78 164 C66 100 98 52 152 50 C208 50 236 94 222 164 C218 136 210 114 194 104 C170 92 128 94 108 104 C92 114 84 134 78 164 Z" fill="url(#hairg)"/>
+<path d="M84 150 C84 132 90 118 100 110" stroke="#9a948f" stroke-width="3" fill="none" opacity=".75"/>
+<path d="M216 150 C216 132 210 118 200 110" stroke="#9a948f" stroke-width="3" fill="none" opacity=".75"/>
+<path d="M120 66 C140 58 172 58 196 72" stroke="#5a544f" stroke-width="2" fill="none" opacity=".6"/>
+<path d="M128 118 Q150 114 172 118" stroke="#b98466" stroke-width="1.2" fill="none" opacity=".45"/>
+<g id="brows">
+<path d="M103 141 Q118 132 136 138" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+<path d="M164 138 Q182 132 197 141" stroke="#2f2a27" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+</g>
+<g class="eye" id="eyeL">
+<ellipse cx="120" cy="160" rx="11" ry="6.2" fill="#f7f3ef"/>
+<circle cx="121" cy="160" r="5.2" fill="#4a3426"/><circle cx="121" cy="160" r="2.3" fill="#1b120d"/>
+<circle cx="123" cy="158" r="1.3" fill="#fff"/>
+<path d="M108 158 Q120 150 132 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
+</g>
+<g class="eye" id="eyeR">
+<ellipse cx="180" cy="160" rx="11" ry="6.2" fill="#f7f3ef"/>
+<circle cx="179" cy="160" r="5.2" fill="#4a3426"/><circle cx="179" cy="160" r="2.3" fill="#1b120d"/>
+<circle cx="181" cy="158" r="1.3" fill="#fff"/>
+<path d="M168 158 Q180 150 192 158" stroke="#5a3f31" stroke-width="2" fill="none"/>
+</g>
+<path d="M110 170 Q120 174 130 170" stroke="#b07a5c" stroke-width="1.2" fill="none" opacity=".6"/>
+<path d="M170 170 Q180 174 190 170" stroke="#b07a5c" stroke-width="1.2" fill="none" opacity=".6"/>
+<g fill="none" stroke="#3a3a3c" stroke-width="2.2" opacity=".85">
+<rect x="102" y="146" width="38" height="27" rx="9"/>
+<rect x="160" y="146" width="38" height="27" rx="9"/>
+<path d="M140 156 Q150 151 160 156"/>
+<path d="M102 154 L84 150"/><path d="M198 154 L216 150"/>
+</g>
+<path d="M150 162 C147 180 141 192 142 198 Q150 204 158 198" stroke="#a8715a" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M152 166 C152 180 156 188 158 196" stroke="#f6d8c2" stroke-width="2" fill="none" opacity=".6"/>
+<path d="M128 200 Q122 214 128 228" stroke="#b07a5c" stroke-width="1.4" fill="none" opacity=".55"/>
+<path d="M172 200 Q178 214 172 228" stroke="#b07a5c" stroke-width="1.4" fill="none" opacity=".55"/>
+<ellipse cx="112" cy="196" rx="12" ry="7" fill="#e08f7a" opacity=".18"/>
+<ellipse cx="188" cy="196" rx="12" ry="7" fill="#e08f7a" opacity=".18"/>
+<g id="mouthShut"><path d="M132 220 Q150 229 168 220" stroke="#8a4f42" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+<g id="mouthOpen"><path d="M134 219 Q150 222 166 219 Q160 233 150 234 Q140 233 134 219 Z" fill="#6e3a32"/><path d="M138 220 Q150 222 162 220" stroke="#f3eeea" stroke-width="2.4" fill="none"/></g>
+</g>
+</svg>
+</div>
+<div class="panel">
+<div class="status"><span id="statusText">準備OK</span><div class="meter"><i id="meter"></i></div></div>
+<div class="row">
+<button class="primary" id="startBtn">話しはじめる</button>
+<button class="ghost" id="voiceBtn">声：オフ</button>
+</div>
+<button class="tapbtn" id="tapBtn" hidden>話の区切りでタップ</button>
+<p class="note" id="note">マイクで声を拾い、話の切れ目でうなずいて相槌を返します。話の内容は記録しません。</p>
+</div>
+</div>
+<script>
+(function(){
+const head=document.getElementById('head'), brows=document.getElementById('brows');
+const bubble=document.getElementById('bubble'), stage=document.getElementById('stage');
+const eyes=[document.getElementById('eyeL'),document.getElementById('eyeR')];
+const statusText=document.getElementById('statusText'), meter=document.getElementById('meter');
+const startBtn=document.getElementById('startBtn'), voiceBtn=document.getElementById('voiceBtn');
+const tapBtn=document.getElementById('tapBtn'), note=document.getElementById('note');
+const SHORT=['うん','はい','ええ','うん、うん'];
+const MID=['うんうん','なるほど','そうなんですね','へえ','ほう','それで？'];
+const LONG=['なるほどねえ','そうだったんですね','わかります','それは大変でしたね','へえ、それで？','いい話ですね'];
+let last='';
+function pick(list){let w;do{w=list[Math.floor(Math.random()*list.length)]}while(list.length>1&&w===last);last=w;return w}
+function anim(el,cls){el.classList.remove('nod','nod2','small');void el.getBoundingClientRect();el.classList.add(cls);}
+function blink(){eyes.forEach(e=>{e.classList.remove('blink');void e.getBoundingClientRect();e.classList.add('blink')});}
+(function blinkLoop(){setTimeout(()=>{blink();blinkLoop()},2500+Math.random()*3500)})();
+let voiceOn=false, speakingOut=false, bubbleTimer;
+voiceBtn.addEventListener('click',()=>{voiceOn=!voiceOn;voiceBtn.textContent='声：'+(voiceOn?'オン':'オフ');});
+function aizuchi(segMs){
+const word = segMs<1500?pick(SHORT):segMs<5000?pick(MID):pick(LONG);
+anim(head, word.includes('うん')||word==='ええ'?'nod2':'nod');
+if(/へえ|ほう|それで/.test(word)){brows.classList.add('up');setTimeout(()=>brows.classList.remove('up'),900)}
+stage.classList.add('talk');setTimeout(()=>stage.classList.remove('talk'),380);
+if(Math.random()<.4)setTimeout(blink,300);
+bubble.classList.remove('hint');bubble.textContent=word;bubble.classList.add('show');
+clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1800);
+if(voiceOn&&'speechSynthesis'in window){
+try{const u=new SpeechSynthesisUtterance(word);u.lang='ja-JP';u.rate=1;u.pitch=.8;
+speakingOut=true;u.onend=u.onerror=()=>setTimeout(()=>speakingOut=false,400);
+speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){speakingOut=false}
+}
+}
+document.getElementById('person').addEventListener('click',()=>anim(head,'small'));
+tapBtn.addEventListener('click',()=>aizuchi(2000+Math.random()*3000));
+let ctx, analyser, stream, running=false, data;
+let floor=0.01, inSeg=false, segStart=0, lastVoice=0, lastNod=0, lastAizuchi=0, voicedMs=0, prevT=0;
+async function start(){
+if(running){stop();return}
+try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
+catch(e){statusText.textContent='マイクが使えませんでした';tapBtn.hidden=false;
+note.textContent='マイクを使えないようです。話しながら、区切りで下のボタンをタップすると相槌を返します。';return;}
+ctx=new (window.AudioContext||window.webkitAudioContext)();
+const src=ctx.createMediaStreamSource(stream);
+analyser=ctx.createAnalyser();analyser.fftSize=1024;src.connect(analyser);
+data=new Float32Array(analyser.fftSize);
+running=true;startBtn.textContent='やめる';statusText.textContent='聞いています';
+bubble.classList.add('hint','show');bubble.textContent='うん、どうぞ';
+clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1600);
+anim(head,'small');prevT=performance.now();requestAnimationFrame(loop);
+}
+function stop(){
+running=false;try{stream.getTracks().forEach(t=>t.stop());ctx.close()}catch(e){}
+startBtn.textContent='話しはじめる';statusText.textContent='おつかれさまでした';meter.style.width='0';
+}
+function loop(t){
+if(!running)return;
+const dt=t-prevT;prevT=t;
+analyser.getFloatTimeDomainData(data);
+let s=0;for(let i=0;i<data.length;i++)s+=data[i]*data[i];
+const rms=Math.sqrt(s/data.length);
+if(rms<floor)floor=floor*.9+rms*.1;else floor=floor*.999+rms*.001;
+const thr=Math.max(floor*3,0.012);
+const voiced=rms>thr&&!speakingOut;
+meter.style.width=Math.min(100,rms/thr*35)+'%';
+if(voiced){
+if(!inSeg){inSeg=true;segStart=t;voicedMs=0}
+voicedMs+=dt;lastVoice=t;statusText.textContent='聞いています…';
+if(t-lastNod>3200&&t-segStart>2500&&t-lastAizuchi>2000){lastNod=t;anim(head,'small')}
+}else if(inSeg){
+if(t-lastVoice>650){inSeg=false;
+if(voicedMs>500&&t-lastAizuchi>1200){lastAizuchi=t;lastNod=t;aizuchi(lastVoice-segStart)}
+statusText.textContent='聞いています';}
+}
+requestAnimationFrame(loop);
+}
+startBtn.addEventListener('click',start);
+})();
+</script>
+</body></html>
