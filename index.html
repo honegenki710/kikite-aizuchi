@@ -220,7 +220,32 @@ function anim(el,c){el.classList.remove('nod','nod2','small');void el.getBoundin
 function blink(){eyes.forEach(e=>{e.classList.remove('blink');void e.getBoundingClientRect();e.classList.add('blink')})}
 (function bl(){setTimeout(()=>{blink();bl()},2500+Math.random()*3500)})();
 let voiceOn=false,speakingOut=false,bubbleTimer;
-voiceBtn.addEventListener('click',()=>{voiceOn=!voiceOn;voiceBtn.textContent='声：'+(voiceOn?'オン':'オフ')});
+/* 声の出力。iPhoneでは「ボタンを押したとき」に一度しゃべらせないと、その後も声が出ないため、
+   オンにした瞬間にあいさつをする */
+const canSpeak='speechSynthesis'in window;
+let jaVoice=null;
+function findVoice(){try{const v=speechSynthesis.getVoices();jaVoice=v.find(x=>/ja[-_]JP/i.test(x.lang))||null}catch(e){}}
+if(canSpeak){findVoice();try{speechSynthesis.onvoiceschanged=findVoice}catch(e){}}
+function speak(text,done){
+ if(!canSpeak){done&&done();return}
+ try{
+  if(!jaVoice)findVoice();
+  const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';if(jaVoice)u.voice=jaVoice;
+  u.pitch=cur.pitch;u.rate=1;u.volume=1;
+  let fin=false;const end=()=>{if(fin)return;fin=true;done&&done()};
+  u.onend=end;u.onerror=end;setTimeout(end,4000);
+  if(speechSynthesis.speaking)speechSynthesis.cancel();
+  speechSynthesis.resume();speechSynthesis.speak(u);
+ }catch(e){done&&done()}
+}
+voiceBtn.addEventListener('click',()=>{
+ voiceOn=!voiceOn;voiceBtn.textContent='声：'+(voiceOn?'オン':'オフ');
+ if(voiceOn){
+  if(!canSpeak){say('この端末では声が出せません',true);voiceOn=false;voiceBtn.textContent='声：オフ';return}
+  speakingOut=true;say('はい、声も出しますね',true);
+  speak('はい、声も出しますね',()=>setTimeout(()=>speakingOut=false,400));
+ }
+});
 function say(word,hint){
  bubble.classList.toggle('hint',!!hint);bubble.textContent=word;bubble.classList.add('show');
  clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1900);
@@ -232,9 +257,9 @@ function aizuchi(ms,text){
  stage.classList.add('talk');setTimeout(()=>stage.classList.remove('talk'),380);
  if(Math.random()<.4)setTimeout(blink,300);
  say(w);
- if(voiceOn&&'speechSynthesis'in window){
-  try{const u=new SpeechSynthesisUtterance(w);u.lang='ja-JP';u.pitch=cur.pitch;speakingOut=true;
-   u.onend=u.onerror=()=>setTimeout(()=>speakingOut=false,500);speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){speakingOut=false}
+ if(voiceOn){
+  speakingOut=true;  // 自分の声を聞き取らないよう、しゃべっている間は聞き取りを止める
+  setTimeout(()=>speak(w,()=>setTimeout(()=>speakingOut=false,500)),300); // 聞き取りが止まるのを少し待ってから話す
  }
 }
 $('person').addEventListener('click',()=>anim(head,'small'));
@@ -344,6 +369,7 @@ async function start(){
  if(running){stop();return}
  running=true;startBtn.textContent='やめる';statusText.textContent='聞いています';
  say('うん、どうぞ',true);anim(head,'small');
+ if(voiceOn){speakingOut=true;speak('うん、どうぞ',()=>setTimeout(()=>speakingOut=false,400))}
  if(SR)startWords();else startVolume();
 }
 function stop(){
