@@ -19,7 +19,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size
 .stage{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
   background:radial-gradient(120% 80% at 50% 30%,var(--panel),var(--wall));border-radius:20px;overflow:hidden}
 .bubble{position:absolute;top:14px;left:50%;transform:translateX(-50%) scale(.9);opacity:0;
-  background:var(--bubble);color:var(--fg);font-family:var(--font-display);font-weight:700;font-size:clamp(22px,7vw,30px);
+  background:var(--bubble);color:var(--fg);font-family:var(--font-display);font-weight:700;font-size:clamp(20px,6.5vw,28px);
   padding:10px 22px;border-radius:22px;box-shadow:0 6px 18px rgb(0 0 0 / .12);white-space:nowrap;transition:opacity .25s,transform .25s;z-index:2}
 .bubble::after{content:"";position:absolute;bottom:-9px;left:50%;margin-left:-9px;border:9px solid transparent;border-top-color:var(--bubble);border-bottom:0}
 .bubble.show{opacity:1;transform:translateX(-50%) scale(1)}
@@ -44,8 +44,13 @@ svg.person{width:100%;max-width:340px;height:auto;max-height:100%;display:block;
 .talk #mouthShut{opacity:0}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px}
 .status{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);min-height:22px}
-.meter{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
-.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s}
+.meter{flex:1;height:10px;border-radius:5px;background:var(--line);overflow:hidden;position:relative}
+.meter i{display:block;height:100%;width:0;background:var(--muted);transition:width .08s}
+.meter i.on{background:var(--accent)}
+.meter b{position:absolute;top:0;bottom:0;width:2px;background:var(--fg);opacity:.6;left:30%}
+.heard{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:18px;margin:0}
+.sens{display:flex;align-items:center;gap:10px;font-size:14px}
+.sens input{flex:1;accent-color:var(--accent)}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:700;font-size:16px;cursor:pointer}
 .primary{flex:1;background:var(--accent);color:var(--accent-fg)}
@@ -120,89 +125,152 @@ button{font:inherit;border:0;border-radius:14px;padding:14px 16px;font-weight:70
 </svg>
 </div>
 <div class="panel">
-<div class="status"><span id="statusText">準備OK</span><div class="meter"><i id="meter"></i></div></div>
+<div class="status"><span id="statusText">準備OK</span><div class="meter" id="meterBox" hidden><i id="meter"></i><b id="thrMark"></b></div></div>
+<p class="heard" id="heard"></p>
+<label class="sens" id="sensRow" hidden>感度<input type="range" id="sens" min="1" max="10" value="6"></label>
 <div class="row">
 <button class="primary" id="startBtn">話しはじめる</button>
 <button class="ghost" id="voiceBtn">声：オフ</button>
 </div>
 <button class="tapbtn" id="tapBtn" hidden>話の区切りでタップ</button>
-<p class="note" id="note">マイクで声を拾い、話の切れ目でうなずいて相槌を返します。話の内容は記録しません。</p>
+<p class="note" id="note">iPhoneの音声認識で話を聞き取り、話の切れ目でうなずいて相槌を返します。聞き取った言葉は相槌を選ぶのに使うだけで、保存はしません。</p>
 </div>
 </div>
 <script>
 (function(){
-const head=document.getElementById('head'), brows=document.getElementById('brows');
-const bubble=document.getElementById('bubble'), stage=document.getElementById('stage');
-const eyes=[document.getElementById('eyeL'),document.getElementById('eyeR')];
-const statusText=document.getElementById('statusText'), meter=document.getElementById('meter');
-const startBtn=document.getElementById('startBtn'), voiceBtn=document.getElementById('voiceBtn');
-const tapBtn=document.getElementById('tapBtn'), note=document.getElementById('note');
-const SHORT=['うん','はい','ええ','うん、うん'];
-const MID=['うんうん','なるほど','そうなんですね','へえ','ほう','それで？'];
-const LONG=['なるほどねえ','そうだったんですね','わかります','それは大変でしたね','へえ、それで？','いい話ですね'];
+const $=id=>document.getElementById(id);
+const head=$('head'),brows=$('brows'),bubble=$('bubble'),stage=$('stage');
+const eyes=[$('eyeL'),$('eyeR')],statusText=$('statusText'),meter=$('meter'),thrMark=$('thrMark');
+const startBtn=$('startBtn'),voiceBtn=$('voiceBtn'),tapBtn=$('tapBtn'),note=$('note'),heard=$('heard'),sens=$('sens');
+try{const v=localStorage.getItem('kikite-sens');if(v)sens.value=v}catch(e){}
+sens.addEventListener('input',()=>{try{localStorage.setItem('kikite-sens',sens.value)}catch(e){}});
+
+const W={
+ short:['うん','はい','ええ','うん、うん'],
+ mid:['うんうん','なるほど','そうなんですね','へえ','ほう','それで？'],
+ long:['なるほどねえ','そうだったんですね','わかります','うんうん、それで？','へえ、そうなんだ'],
+ hard:['それは大変でしたね','うーん、それはしんどいですね','そうでしたか…'],
+ good:['それはよかったですね','いいですねえ','へえ、いいなあ'],
+ ask:['うーん、どうでしょうね','なるほど、悩みますね','そうですねえ'],
+ cont:['うん','うんうん','ええ']
+};
 let last='';
-function pick(list){let w;do{w=list[Math.floor(Math.random()*list.length)]}while(list.length>1&&w===last);last=w;return w}
-function anim(el,cls){el.classList.remove('nod','nod2','small');void el.getBoundingClientRect();el.classList.add(cls);}
-function blink(){eyes.forEach(e=>{e.classList.remove('blink');void e.getBoundingClientRect();e.classList.add('blink')});}
-(function blinkLoop(){setTimeout(()=>{blink();blinkLoop()},2500+Math.random()*3500)})();
-let voiceOn=false, speakingOut=false, bubbleTimer;
-voiceBtn.addEventListener('click',()=>{voiceOn=!voiceOn;voiceBtn.textContent='声：'+(voiceOn?'オン':'オフ');});
-function aizuchi(segMs){
-const word = segMs<1500?pick(SHORT):segMs<5000?pick(MID):pick(LONG);
-anim(head, word.includes('うん')||word==='ええ'?'nod2':'nod');
-if(/へえ|ほう|それで/.test(word)){brows.classList.add('up');setTimeout(()=>brows.classList.remove('up'),900)}
-stage.classList.add('talk');setTimeout(()=>stage.classList.remove('talk'),380);
-if(Math.random()<.4)setTimeout(blink,300);
-bubble.classList.remove('hint');bubble.textContent=word;bubble.classList.add('show');
-clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1800);
-if(voiceOn&&'speechSynthesis'in window){
-try{const u=new SpeechSynthesisUtterance(word);u.lang='ja-JP';u.rate=1;u.pitch=.8;
-speakingOut=true;u.onend=u.onerror=()=>setTimeout(()=>speakingOut=false,400);
-speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){speakingOut=false}
+function pick(l){let w;do{w=l[Math.floor(Math.random()*l.length)]}while(l.length>1&&w===last);last=w;return w}
+function choose(ms,t){
+ t=(t||'').trim();
+ if(/疲れ|大変|しんど|つら|辛|困っ|忙し|最悪|怒|悲し|痛/.test(t))return pick(W.hard);
+ if(/嬉し|うれし|楽し|よかった|良かった|最高|おいし|美味し|好き|助かっ/.test(t))return pick(W.good);
+ if(/[？?]$|かな$|ですか$|ますか$|でしょうか$|どう思/.test(t))return pick(W.ask);
+ if(/(けど|けれど|から|ので|して|って)$/.test(t))return pick(W.cont);
+ return ms<1500?pick(W.short):ms<5000?pick(W.mid):pick(W.long);
 }
+function anim(el,c){el.classList.remove('nod','nod2','small');void el.getBoundingClientRect();el.classList.add(c)}
+function blink(){eyes.forEach(e=>{e.classList.remove('blink');void e.getBoundingClientRect();e.classList.add('blink')})}
+(function bl(){setTimeout(()=>{blink();bl()},2500+Math.random()*3500)})();
+let voiceOn=false,speakingOut=false,bubbleTimer;
+voiceBtn.addEventListener('click',()=>{voiceOn=!voiceOn;voiceBtn.textContent='声：'+(voiceOn?'オン':'オフ')});
+function say(word,hint){
+ bubble.classList.toggle('hint',!!hint);bubble.textContent=word;bubble.classList.add('show');
+ clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1900);
 }
-document.getElementById('person').addEventListener('click',()=>anim(head,'small'));
-tapBtn.addEventListener('click',()=>aizuchi(2000+Math.random()*3000));
-let ctx, analyser, stream, running=false, data;
-let floor=0.01, inSeg=false, segStart=0, lastVoice=0, lastNod=0, lastAizuchi=0, voicedMs=0, prevT=0;
+function aizuchi(ms,text){
+ const w=choose(ms,text);
+ anim(head,/うん|ええ/.test(w)?'nod2':'nod');
+ if(/へえ|ほう|それで/.test(w)){brows.classList.add('up');setTimeout(()=>brows.classList.remove('up'),900)}
+ stage.classList.add('talk');setTimeout(()=>stage.classList.remove('talk'),380);
+ if(Math.random()<.4)setTimeout(blink,300);
+ say(w);
+ if(voiceOn&&'speechSynthesis'in window){
+  try{const u=new SpeechSynthesisUtterance(w);u.lang='ja-JP';u.pitch=.8;speakingOut=true;
+   u.onend=u.onerror=()=>setTimeout(()=>speakingOut=false,500);speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){speakingOut=false}
+ }
+}
+$('person').addEventListener('click',()=>anim(head,'small'));
+tapBtn.addEventListener('click',()=>aizuchi(2000+Math.random()*3000,''));
+
+let running=false,inSeg=false,segStart=0,lastVoice=0,lastAizuchi=0,lastNod=0,segText='',timer=null;
+function finish(now){
+ inSeg=false;
+ if(now-lastAizuchi>900){lastAizuchi=now;lastNod=now;aizuchi(lastVoice-segStart,segText)}
+ segText='';statusText.textContent='聞いています';
+}
+function heardVoice(now){
+ if(!inSeg){inSeg=true;segStart=now}
+ lastVoice=now;statusText.textContent='聞いています…';
+ if(now-lastNod>3200&&now-segStart>2500&&now-lastAizuchi>2000){lastNod=now;anim(head,'small')}
+}
+
+/* 方式1：iPhoneの音声認識（言葉で区切りを判断） */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null,recFails=0;
+function startWords(){
+ rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResults=true;
+ let gotAny=false;
+ rec.onresult=e=>{
+  if(speakingOut)return;
+  gotAny=true;recFails=0;
+  const r=e.results[e.results.length-1];
+  segText=r[0].transcript;heard.textContent='「'+segText+'」';
+  heardVoice(performance.now());
+ };
+ rec.onerror=e=>{
+  if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture'){rec=null;startVolume();}
+ };
+ rec.onend=()=>{
+  if(!running||!rec)return;
+  if(!gotAny)recFails++;
+  if(recFails>4){rec=null;startVolume();return}
+  setTimeout(()=>{try{rec&&rec.start()}catch(e){}},150);
+ };
+ try{rec.start()}catch(e){rec=null;startVolume();return}
+ timer=setInterval(()=>{const n=performance.now();if(inSeg&&n-lastVoice>800)finish(n)},100);
+ note.textContent='iPhoneの音声認識で話を聞き取り、話の切れ目でうなずいて相槌を返します。聞き取った言葉は相槌を選ぶのに使うだけで、保存はしません。';
+}
+
+/* 方式2：声の大きさで判断（音声認識が使えないとき） */
+let ctx,analyser,stream,data,floor=0.002;
+async function startVolume(){
+ clearInterval(timer);
+ if(!running)return;
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+ catch(e){statusText.textContent='マイクが使えませんでした';tapBtn.hidden=false;
+  note.textContent='マイクを使えないようです。話しながら、区切りで下のボタンをタップすると相槌を返します。';return}
+ ctx=new (window.AudioContext||window.webkitAudioContext)();
+ try{await ctx.resume()}catch(e){}
+ const src=ctx.createMediaStreamSource(stream);
+ analyser=ctx.createAnalyser();analyser.fftSize=1024;src.connect(analyser);
+ data=new Float32Array(analyser.fftSize);
+ $('meterBox').hidden=false;$('sensRow').hidden=false;heard.textContent='';
+ note.textContent='声の大きさで話の切れ目を判断しています。話してもバーが縦線を越えないときは、感度を上げてください。';
+ requestAnimationFrame(loop);
+}
+const scale=v=>Math.min(100,Math.sqrt(v/0.08)*100);
+function loop(t){
+ if(!running||!analyser)return;
+ analyser.getFloatTimeDomainData(data);
+ let s=0;for(let i=0;i<data.length;i++)s+=data[i]*data[i];
+ const rms=Math.sqrt(s/data.length);
+ const k=+sens.value;
+ const thr=Math.max(floor*(1.5+4/k),0.02/(k*k));
+ const voiced=rms>thr&&!speakingOut;
+ if(rms<floor)floor=floor*.9+rms*.1;else if(!voiced)floor=floor*.995+rms*.005;
+ meter.style.width=scale(rms)+'%';meter.classList.toggle('on',voiced);thrMark.style.left=scale(thr)+'%';
+ if(voiced)heardVoice(t);
+ else if(inSeg&&t-lastVoice>550){if(t-segStart>400)finish(t);else inSeg=false}
+ requestAnimationFrame(loop);
+}
+
 async function start(){
-if(running){stop();return}
-try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}
-catch(e){statusText.textContent='マイクが使えませんでした';tapBtn.hidden=false;
-note.textContent='マイクを使えないようです。話しながら、区切りで下のボタンをタップすると相槌を返します。';return;}
-ctx=new (window.AudioContext||window.webkitAudioContext)();
-const src=ctx.createMediaStreamSource(stream);
-analyser=ctx.createAnalyser();analyser.fftSize=1024;src.connect(analyser);
-data=new Float32Array(analyser.fftSize);
-running=true;startBtn.textContent='やめる';statusText.textContent='聞いています';
-bubble.classList.add('hint','show');bubble.textContent='うん、どうぞ';
-clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),1600);
-anim(head,'small');prevT=performance.now();requestAnimationFrame(loop);
+ if(running){stop();return}
+ running=true;startBtn.textContent='やめる';statusText.textContent='聞いています';
+ say('うん、どうぞ',true);anim(head,'small');
+ if(SR)startWords();else startVolume();
 }
 function stop(){
-running=false;try{stream.getTracks().forEach(t=>t.stop());ctx.close()}catch(e){}
-startBtn.textContent='話しはじめる';statusText.textContent='おつかれさまでした';meter.style.width='0';
-}
-function loop(t){
-if(!running)return;
-const dt=t-prevT;prevT=t;
-analyser.getFloatTimeDomainData(data);
-let s=0;for(let i=0;i<data.length;i++)s+=data[i]*data[i];
-const rms=Math.sqrt(s/data.length);
-if(rms<floor)floor=floor*.9+rms*.1;else floor=floor*.9999+rms*.0001;
-const thr=Math.max(floor*2,0.003);
-const voiced=rms>thr&&!speakingOut;
-meter.style.width=Math.min(100,rms/thr*35)+'%';
-if(voiced){
-if(!inSeg){inSeg=true;segStart=t;voicedMs=0}
-voicedMs+=dt;lastVoice=t;statusText.textContent='聞いています…';
-if(t-lastNod>3200&&t-segStart>2500&&t-lastAizuchi>2000){lastNod=t;anim(head,'small')}
-}else if(inSeg){
-if(t-lastVoice>5000){inSeg=false;
-if(voicedMs>300&&t-lastAizuchi>1200){lastAizuchi=t;lastNod=t;aizuchi(lastVoice-segStart)}
-statusText.textContent='聞いています';}
-}
-requestAnimationFrame(loop);
+ running=false;clearInterval(timer);
+ try{rec&&rec.stop()}catch(e){}rec=null;
+ try{stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close()}catch(e){}
+ analyser=null;startBtn.textContent='話しはじめる';statusText.textContent='おつかれさまでした';
 }
 startBtn.addEventListener('click',start);
 })();
