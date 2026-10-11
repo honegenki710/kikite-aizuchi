@@ -241,8 +241,9 @@ $('person').addEventListener('click',()=>anim(head,'small'));
 tapBtn.addEventListener('click',()=>aizuchi(2000+Math.random()*3000,''));
 
 let running=false,inSeg=false,segStart=0,lastVoice=0,lastAizuchi=0,lastNod=0,segText='',timer=null;
+let onSegmentDone=null;
 function finish(now){
- inSeg=false;
+ inSeg=false;if(onSegmentDone)onSegmentDone();
  if(now-lastAizuchi>900){lastAizuchi=now;lastNod=now;aizuchi(lastVoice-segStart,segText)}
  segText='';statusText.textContent='聞いています';
 }
@@ -252,37 +253,64 @@ function heardVoice(now){
  if(now-lastNod>3200&&now-segStart>2500&&now-lastAizuchi>2000){lastNod=now;anim(head,'small')}
 }
 
-/* 方式1：iPhoneの音声認識（言葉で区切りを判断） */
+/* 方式1：iPhoneの音声認識（言葉で区切りを判断）
+   iPhoneでは認識が途中で黙って止まることがあるので、
+   相槌のたびに作り直し、しばらく反応がなければ自動でやり直す */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let rec=null,recFails=0;
-function startWords(){
- rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResults=true;
+let rec=null,recFails=0,lastHeard='',lastEvent=0,restarting=false;
+function makeRec(){
+ const r=new SR();r.lang='ja-JP';r.continuous=true;r.interimResults=true;
  let gotAny=false;
- rec.onresult=e=>{
-  if(speakingOut)return;
-  gotAny=true;recFails=0;
-  const r=e.results[e.results.length-1];
-  segText=r[0].transcript;heard.textContent='「'+segText+'」';
+ r.onstart=()=>{lastEvent=performance.now()};
+ r.onresult=e=>{
+  if(r!==rec||speakingOut)return;
+  let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;
+  lastEvent=performance.now();
+  if(t===lastHeard)return;            // 同じ文字の繰り返しは「話している」と数えない
+  gotAny=true;recFails=0;lastHeard=t;
+  segText=t;heard.textContent='「'+t+'」';
   heardVoice(performance.now());
  };
- rec.onerror=e=>{
-  if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture'){rec=null;startVolume();}
+ r.onerror=e=>{
+  if(r!==rec)return;
+  if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture'){rec=null;clearInterval(timer);startVolume()}
  };
- rec.onend=()=>{
-  if(!running||!rec)return;
+ r.onend=()=>{
+  if(r!==rec||!running)return;
   if(!gotAny)recFails++;
-  if(recFails>4){rec=null;startVolume();return}
-  setTimeout(()=>{try{rec&&rec.start()}catch(e){}},150);
+  if(recFails>6){rec=null;clearInterval(timer);startVolume();return}
+  freshRec(200);
  };
- try{rec.start()}catch(e){rec=null;startVolume();return}
- timer=setInterval(()=>{const n=performance.now();if(inSeg&&n-lastVoice>800)finish(n)},100);
+ return r;
+}
+function freshRec(delay){
+ if(restarting||!running)return;
+ restarting=true;
+ const old=rec;rec=null;
+ try{old&&old.abort()}catch(e){}
+ setTimeout(()=>{
+  restarting=false;
+  if(!running)return;
+  if(speakingOut){freshRec(300);return}  // 自分の声を聞かないよう、しゃべり終わりを待つ
+  lastHeard='';rec=makeRec();lastEvent=performance.now();
+  try{rec.start()}catch(e){freshRec(500)}
+ },delay);
+}
+function startWords(){
+ onSegmentDone=()=>freshRec(250);
+ freshRec(0);
+ timer=setInterval(()=>{
+  const n=performance.now();
+  if(inSeg&&n-lastVoice>800)finish(n);
+  else if(!inSeg&&!restarting&&n-lastEvent>12000)freshRec(0); // 12秒なにも来なければやり直す
+ },100);
  note.textContent='iPhoneの音声認識で話を聞き取り、話の切れ目でうなずいて相槌を返します。聞き取った言葉は相槌を選ぶのに使うだけで、保存はしません。';
 }
 
 /* 方式2：声の大きさで判断（音声認識が使えないとき） */
 let ctx,analyser,stream,data,floor=0.002;
 async function startVolume(){
- clearInterval(timer);
+ clearInterval(timer);onSegmentDone=null;
  if(!running)return;
  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
  catch(e){statusText.textContent='マイクが使えませんでした';tapBtn.hidden=false;
@@ -320,7 +348,7 @@ async function start(){
 }
 function stop(){
  running=false;clearInterval(timer);
- try{rec&&rec.stop()}catch(e){}rec=null;
+ try{rec&&rec.abort()}catch(e){}rec=null;onSegmentDone=null;
  try{stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close()}catch(e){}
  analyser=null;startBtn.textContent='話しはじめる';statusText.textContent='おつかれさまでした';
 }
